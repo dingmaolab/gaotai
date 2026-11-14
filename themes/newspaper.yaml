@@ -1,0 +1,14 @@
+id: newspaper
+name: 报纸
+roles:
+  primary: {light: "#7B3F00", dark: "#D2A679"}
+  text:    {light: "#2B2118", dark: "#E8DDD0"}
+  muted:   {light: "#7A6A5A", dark: "#A89880"}
+  bgCard:  {light: "#FAF5EC", dark: "#2A2119"}
+  mark:    {light: "#F0E5D2", dark: "#3D2F22"}
+  border:  {light: "#DCCDB6", dark: "#4A3A28"}
+body: {size: 16, line: 1.9, family: "Georgia,'Songti SC','SimSun',serif"}
+h2: {decor: underline, size: 20, weight: 700}
+sectionNumbering: true
+quote: {variant: bigquote, size: 16}
+code: {variant: light}

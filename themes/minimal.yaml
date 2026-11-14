@@ -1,0 +1,14 @@
+id: minimal
+name: 极简黑白
+roles:
+  primary: {light: "#111111", dark: "#FFFFFF"}
+  text:    {light: "#111111", dark: "#EEEEEE"}
+  muted:   {light: "#8A8A8A", dark: "#9A9A9A"}
+  bgCard:  {light: "#F6F6F6", dark: "#1A1A1A"}
+  mark:    {light: "#EAEAEA", dark: "#333333"}
+  border:  {light: "#E0E0E0", dark: "#333333"}
+body: {size: 16, line: 1.95}
+h2: {decor: pill, size: 18, weight: 700}
+sectionNumbering: false
+quote: {variant: bigquote, size: 16}
+code: {variant: light}

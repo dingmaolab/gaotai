@@ -1,0 +1,15 @@
+platform: wechat_article
+slots:
+  cover:
+    size: [900, 383]
+    template: cover-wide
+    fields: { column: top-left, title: center-left, no: bottom-right }
+    limits: { title_lines: 2, title_chars_per_line: 12 }
+  thumb:
+    size: [200, 200]
+    template: cover-square
+    limits: { title_lines: 2, title_chars_per_line: 5 }
+  inline:
+    width: 1080
+    height: auto
+    max_height: 1620

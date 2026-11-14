@@ -1,0 +1,99 @@
+# 稿台 · 结构原型库
+# 模型根据 intent 维度选候选，再按账号偏好选定。
+# 反重复：最近 2 篇同结构则强制换。
+
+timeline:
+  name: 时间线叙事
+  beats: [起点, 转折, 现在]
+  suits: [record, inform]
+  note: "跟着时间走，转折处给判断，不强行升华"
+
+scene-reflection:
+  name: 场景→感受→判断
+  beats: [具体场景, 内心反应, 一句收束]
+  suits: [resonate, record]
+  note: "场景要具体到能看见画面；收束克制，不说教"
+
+progressive-chain:
+  name: 递进链
+  beats: [层N, 遗留问题, 层N+1]
+  suits: [teach]
+  note: "每层解决上一层留下的问题；最后一层不给答案也可以"
+
+claim-evidence:
+  name: 判断→证据→收束
+  beats: [核心判断, 支撑材料, 边界条件]
+  suits: [persuade]
+  note: "判断可被反驳；证据能点开；边界条件诚实"
+
+step-by-step:
+  name: 步骤式
+  beats: [前置条件, 操作, 验证, 踩坑]
+  suits: [teach]
+  note: "每步可执行；踩坑比成功更有价值"
+
+contrast:
+  name: 对比分析
+  beats: [A怎样, B怎样, 差在哪, 所以选谁]
+  suits: [persuade, teach]
+  note: "对比口径一致；结论有条件，不绝对"
+
+qa:
+  name: 问答体
+  beats: [问题, 拆解, 回答]
+  suits: [persuade, inform]
+  note: "问题是读者真会问的；回答不绕"
+
+data-first:
+  name: 数据先行
+  beats: [数字, 解读, 推论]
+  suits: [inform]
+  note: "数字带来源和读数时间；推论标不确定性"
+
+brief:
+  name: 快讯
+  beats: [发生了什么, 为什么重要, 接下来看什么]
+  suits: [inform]
+  note: "三段完事，不展开论证；时效第一"
+
+listicle:
+  name: 清单体
+  beats: [条目×N]
+  suits: [inform, entertain]
+  note: "每条独立成立；排序有逻辑（重要性/时间/难度）"
+
+hook-punchline:
+  name: 钩子→包袱
+  beats: [悬念, 展开, 反转]
+  suits: [entertain]
+  note: "钩子要具体不要标题党；反转要有铺垫"
+
+letter:
+  name: 书信体
+  beats: [称呼, 正文, 落款]
+  suits: [resonate]
+  note: "对象明确；语气私密；不必有结论"
+
+montage:
+  name: 碎片拼贴
+  beats: [片段×N, 隐性线索]
+  suits: [record, resonate]
+  note: "片段间有情绪或主题线索；不解释线索本身"
+
+demo:
+  name: 演示式
+  beats: [目标, 过程, 结果, 局限]
+  suits: [teach]
+  note: "过程可复现；局限诚实写；结果不夸大"
+
+story:
+  name: 故事体
+  beats: [人物, 冲突, 变化, 余味]
+  suits: [entertain, resonate, record]
+  note: "人物有具体细节；变化是内在的不是外在成就"
+
+diary:
+  name: 日记体
+  beats: [日期/时刻, 事件, 想法]
+  suits: [resonate, record]
+  note: "允许没结论；允许矛盾；真实比完整重要"

@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
+*.log
+GaotaiVault/
+.gaotai-shared/
+node_modules/
+.DS_Store
+Thumbs.db

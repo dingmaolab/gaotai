@@ -1,0 +1,10 @@
+platform: wechat_imagepost
+slots:
+  first:
+    size: [1080, 1080]
+    template: ip-square
+    limits: { title_lines: 2, title_chars_per_line: 7 }
+  rest:
+    size: [1080, 1440]
+    template: ip-portrait
+    limits: { point_lines: 2, point_chars_per_line: 9, note_lines: 3, note_chars_per_line: 18 }

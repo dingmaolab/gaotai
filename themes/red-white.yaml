@@ -1,0 +1,14 @@
+id: red-white
+name: 红白
+roles:
+  primary: {light: "#C0392B", dark: "#F87171"}
+  text:    {light: "#222222", dark: "#EAEAEA"}
+  muted:   {light: "#777777", dark: "#A3A3A3"}
+  bgCard:  {light: "#FBF3F2", dark: "#3A1512"}
+  mark:    {light: "#F5D9D5", dark: "#5B1F1A"}
+  border:  {light: "#EBD8D5", dark: "#4A221E"}
+body: {size: 16, line: 1.8}
+h2: {decor: numbered, size: 19, weight: 800}
+sectionNumbering: true
+quote: {variant: line, size: 15}
+code: {variant: light}

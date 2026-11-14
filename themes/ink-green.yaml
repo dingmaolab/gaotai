@@ -1,0 +1,15 @@
+id: ink-green
+name: 墨绿
+# 角色制：组件只引用角色，不写死颜色
+roles:
+  primary: {light: "#0B6E4F", dark: "#4ADE80"}
+  text:    {light: "#1F2937", dark: "#E5E7EB"}
+  muted:   {light: "#6B7280", dark: "#9CA3AF"}
+  bgCard:  {light: "#F0F7F4", dark: "#0B2E23"}
+  mark:    {light: "#CDE8DC", dark: "#14532D"}
+  border:  {light: "#D8E5DF", dark: "#1F4A3A"}
+body: {size: 16, line: 1.8}
+h2: {decor: left-bar, size: 19, weight: 700}
+sectionNumbering: true
+quote: {variant: card, size: 15}
+code: {variant: light}

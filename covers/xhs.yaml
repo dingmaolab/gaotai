@@ -1,0 +1,11 @@
+platform: xhs_carousel
+slots:
+  cover:
+    size: [1086, 1448]
+    template: xhs-cover
+    safe_square: 1086
+    limits: { title_lines: 3, title_chars_per_line: 8, subtitle_chars: 18 }
+  inner:
+    size: [1086, 1448]
+    template: xhs-inner
+    limits: { point_lines: 2, point_chars_per_line: 9, note_lines: 3, note_chars_per_line: 18 }

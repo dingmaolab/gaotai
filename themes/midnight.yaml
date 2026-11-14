@@ -1,0 +1,14 @@
+id: midnight
+name: 午夜
+roles:
+  primary: {light: "#1E3A8A", dark: "#60A5FA"}
+  text:    {light: "#1A2333", dark: "#DCE3EE"}
+  muted:   {light: "#64748B", dark: "#94A3B8"}
+  bgCard:  {light: "#EEF2FA", dark: "#0F172A"}
+  mark:    {light: "#DCE6FA", dark: "#1E293B"}
+  border:  {light: "#D5DEEC", dark: "#243044"}
+body: {size: 16, line: 1.85}
+h2: {decor: left-bar, size: 19, weight: 700}
+sectionNumbering: true
+quote: {variant: card, size: 15}
+code: {variant: dark}

@@ -1,0 +1,124 @@
+# 稿台 · 维度规则
+# 任何文章 = 六个维度的组合。加新内容类型零改动。
+# 约束优先级：硬底线 > 维度约束 > 账号 overrides > 默认值
+
+source:
+  self:
+    verify: none
+    note: "只能写真实发生的，不许编造升华"
+    blocker_if: [fabricated_experience]
+  event:
+    verify: url_required
+    note: "每个硬事实必须可点开"
+    blocker_if: [unverified_hard_fact]
+  material:
+    verify: cite_required
+    note: "引述标出处，不据为己有"
+    blocker_if: [uncited_quote]
+  hands_on:
+    verify: reproducible
+    note: "有命令/截图/输出，不能只写'我试了试'"
+    blocker_if: [no_reproducible_evidence]
+  opinion:
+    verify: evidence_preferred
+    note: "判断要有支撑，无支撑标为个人看法"
+    blocker_if: []
+  mixed:
+    verify: per_claim
+    note: "逐条按来源判定"
+    blocker_if: [unverified_hard_fact]
+
+urgency:
+  none:
+    path: full
+    default_structure_candidates: all
+  day:
+    path: fast
+    skip: [topic_scoring, outline_confirm]
+  hour:
+    path: flash
+    skip: [topic_scoring, outline_confirm, brief_formal, reader_test]
+    max_chars: 1500
+
+audience:
+  peer:
+    jargon: allowed
+    tone: direct
+    pronoun_me_range: [0.3, 0.8]
+  beginner:
+    jargon: explain_first_use
+    tone: patient
+    pronoun_me_range: [0.2, 0.6]
+  public:
+    jargon: minimize
+    tone: conversational
+    pronoun_me_range: [0.1, 0.5]
+  self:
+    jargon: free
+    tone: intimate
+    pronoun_me_range: [0.5, 1.0]
+
+intent:
+  inform:
+    structures: [timeline, brief, data-first, listicle]
+    ending: [conclusion, next_step, open_question]
+  persuade:
+    structures: [claim-evidence, contrast, qa]
+    ending: [judgment, boundary_condition, call_to_reflect]
+  teach:
+    structures: [step-by-step, progressive-chain, demo, contrast]
+    ending: [summary_checklist, limitation, practice_suggestion]
+  record:
+    structures: [timeline, scene-reflection, montage, letter]
+    ending: [natural_close, unresolved_feeling, quiet_judgment]
+  entertain:
+    structures: [hook-punchline, listicle, story]
+    ending: [punchline, callback, absurd_twist]
+  resonate:
+    structures: [scene-feeling-judgment, letter, diary, montage]
+    ending: [quiet_judgment, shared_feeling, no_answer]
+
+format:
+  longform:
+    chars: [2000, 6000]
+    platform_rules: wechat_article
+    paragraph_max_lines: 4
+    numbers_per_1k_min: 6
+    exclaim_max: 0
+  short:
+    chars: [300, 1500]
+    platform_rules: wechat_article
+    paragraph_max_lines: 3
+    numbers_per_1k_min: 3
+    exclaim_max: 0
+  card:
+    chars: [150, 300]
+    platform_rules: xhs_carousel
+    paragraph_max_lines: 2
+    numbers_per_1k_min: 0
+    exclaim_max: 1
+  imagepost:
+    chars: [180, 250]
+    platform_rules: wechat_imagepost
+    paragraph_max_lines: 2
+    numbers_per_1k_min: 0
+    exclaim_max: 1
+  script:
+    chars: [200, 800]
+    platform_rules: oral
+    paragraph_max_lines: 3
+    numbers_per_1k_min: 2
+    exclaim_max: 2
+
+# 硬底线（所有组合生效，不可覆盖）
+hard_blockers:
+  - ad_law_violation        # 广告法绝对化用语
+  - fabricated_experience   # 编造经历/对话/数字
+  - unverified_hard_fact    # source=event/material 时硬事实无来源
+  - wechat_html_redline     # 微信排版红线（仅 format 阶段）
+
+# 软建议默认值（可被维度约束和账号 overrides 覆盖）
+soft_defaults:
+  cliche_per_1k_max: 6
+  repeat_ngram_rate_max: 0.02
+  ai_tone_score_min: 72     # 低于此分提示，不拦截
