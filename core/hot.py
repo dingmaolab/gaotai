@@ -6,9 +6,8 @@
 from __future__ import annotations
 
 import json
+import random
 import re
-import subprocess
-import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -23,126 +22,108 @@ DEFAULT_BOARDS = {
     "zhihu": {"id": "mproPpoq6O", "name": "知乎热榜"},
     "baidu": {"id": "Jb0vmloB1G", "name": "百度热点"},
     "toutiao": {"id": "x9ozB4KoXb", "name": "今日头条"},
-    "bilibili": {"id": "74KvxwokqM", "name": "B站全站榜"},
+    "bilibili": {"id": "74KvxwokxM", "name": "B站全站榜"},
 }
 
 
 def fetch_raw(boards: list[dict] | None = None, timeout_ms: int = 30000) -> dict[str, Any]:
-    """用 Playwright 抓 tophub，返回 {captured_at, sources, items}。
+    """用 Python Playwright 抓 tophub，返回 {captured_at, sources, items}。
 
     boards: [{id, name}]，不传则用 DEFAULT_BOARDS 全部。
-    需要 playwright 已安装（pip install playwright && playwright install chromium）。
+    需要 pip install playwright && playwright install chromium。
+    纯 Python 实现：不依赖 node 模块解析路径，装在哪都能跑。
     """
     if boards is None:
         boards = [{"id": v["id"], "name": v["name"]} for v in DEFAULT_BOARDS.values()]
 
-    # 生成临时 JS 脚本让 playwright 执行
-    js_code = _build_js(boards, timeout_ms)
-    script_path = Path(__file__).parent / "_hot_fetch.js"
-    script_path.write_text(js_code, encoding="utf-8")
-
+    captured_at = datetime.now(TZ).isoformat(timespec="seconds")
     try:
-        result = subprocess.run(
-            [sys.executable, "-m", "playwright", "run", str(script_path)],
-            capture_output=True, text=True, timeout=timeout_ms // 1000 * len(boards) + 30,
-            cwd=str(Path(__file__).parent),
-        )
-        # playwright run 不一定可用，改用 node 直接跑
-        if result.returncode != 0:
-            result = subprocess.run(
-                ["node", str(script_path)],
-                capture_output=True, text=True, timeout=timeout_ms // 1000 * len(boards) + 30,
-            )
-        if result.returncode != 0:
-            return {
-                "captured_at": datetime.now(TZ).isoformat(timespec="seconds"),
-                "sources": [{"board": b["name"], "id": b["id"], "state": "error", "count": 0,
-                             "error": result.stderr[:200]} for b in boards],
-                "items": [],
-            }
-        data = json.loads(result.stdout)
-        return data
-    except FileNotFoundError:
+        from playwright.sync_api import sync_playwright
+    except ImportError:
         return {
-            "captured_at": datetime.now(TZ).isoformat(timespec="seconds"),
+            "captured_at": captured_at,
             "sources": [{"board": b["name"], "id": b["id"], "state": "error", "count": 0,
-                         "error": "playwright/node not found"} for b in boards],
+                         "error": "playwright 未安装：pip install playwright && playwright install chromium"}
+                        for b in boards],
             "items": [],
         }
-    except (subprocess.TimeoutExpired, json.JSONDecodeError) as e:
-        return {
-            "captured_at": datetime.now(TZ).isoformat(timespec="seconds"),
-            "sources": [{"board": b["name"], "id": b["id"], "state": "timeout", "count": 0,
-                         "error": str(e)[:200]} for b in boards],
-            "items": [],
-        }
-    finally:
-        try:
-            script_path.unlink()
-        except OSError:
-            pass
+
+    sources: list[dict] = []
+    items: list[dict] = []
+    try:
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(headless=True)
+            page = browser.new_page(
+                viewport={"width": 1400, "height": 900},
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36",
+            )
+            for b in boards:
+                try:
+                    page.goto(f"https://tophub.today/n/{b['id']}",
+                              wait_until="networkidle", timeout=timeout_ms)
+                    page.wait_for_timeout(1500)
+                    # 反爬验证码页识别：不是 empty，是 blocked
+                    doc_title = page.title()
+                    if "安全验证" in doc_title or ("验证" in doc_title and "热榜" not in doc_title):
+                        sources.append({"board": b["name"], "id": b["id"], "state": "blocked",
+                                        "count": 0, "error": "tophub 反爬验证码，稍后再试或降低抓取频率"})
+                        continue
+                    rows = page.evaluate(_ROWS_JS)
+                    sources.append({"board": b["name"], "id": b["id"],
+                                    "state": "ok" if rows else "empty", "count": len(rows)})
+                    for r in rows:
+                        items.append({
+                            "id": f"{b['id']}-{r['rank']}",
+                            "title": r["title"], "url": r.get("url", ""),
+                            "board": b["name"], "board_id": b["id"],
+                            "heat": r.get("heat", ""), "rank": r["rank"],
+                        })
+                except Exception as e:
+                    sources.append({"board": b["name"], "id": b["id"], "state": "error",
+                                    "count": 0, "error": str(e)[:200]})
+                # 榜单之间停 2-4 秒，降低反爬触发概率
+                page.wait_for_timeout(2000 + random.randint(0, 2000))
+            browser.close()
+    except Exception as e:
+        # 浏览器启动失败等全局错误：所有榜单标 error，不静默
+        msg = str(e)[:200]
+        known = {s["id"] for s in sources}
+        for b in boards:
+            if b["id"] not in known:
+                sources.append({"board": b["name"], "id": b["id"], "state": "error",
+                                "count": 0, "error": msg})
+    return {"captured_at": captured_at, "sources": sources, "items": items}
 
 
-def _build_js(boards: list[dict], timeout_ms: int) -> str:
-    boards_json = json.dumps(boards, ensure_ascii=False)
-    return f"""
-const {{ chromium }} = require('playwright');
-(async () => {{
-  const boards = {boards_json};
-  const browser = await chromium.launch({{ headless: true }});
-  const page = await browser.newPage({{
-    viewport: {{ width: 1400, height: 900 }},
-    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36'
-  }});
-  const sources = [];
-  const items = [];
-  for (const b of boards) {{
-    try {{
-      await page.goto('https://tophub.today/n/' + b.id, {{ waitUntil: 'networkidle', timeout: {timeout_ms} }});
-      await page.waitForTimeout(1500);
-      const rows = await page.evaluate(() => {{
-        const out = [];
-        document.querySelectorAll('table tbody tr, .ncc-citem').forEach((el, i) => {{
-          const a = el.querySelector('a');
-          const tds = el.querySelectorAll('td');
-          let title = '', heat = '', url = '';
-          if (tds.length >= 2) {{
-            title = (tds[1]?.innerText || '').trim();
-            heat = (tds[2]?.innerText || '').trim();
-            url = tds[1]?.querySelector('a')?.href || '';
-          }} else if (a) {{
-            title = a.innerText.trim();
-            url = a.href;
-          }}
-          if (title && title.length > 2 && title.length < 100) {{
-            out.push({{ title, heat, url, rank: i + 1 }});
-          }}
-        }});
-        return out;
-      }});
-      sources.push({{ board: b.name, id: b.id, state: rows.length ? 'ok' : 'empty', count: rows.length }});
-      for (const r of rows) {{
-        items.push({{
-          id: b.id + '-' + r.rank,
-          title: r.title,
-          url: r.url,
-          board: b.name,
-          board_id: b.id,
-          heat: r.heat,
-          rank: r.rank,
-        }});
-      }}
-    }} catch (e) {{
-      sources.push({{ board: b.name, id: b.id, state: 'error', count: 0, error: e.message.slice(0, 200) }});
-    }}
-  }}
-  await browser.close();
-  console.log(JSON.stringify({{
-    captured_at: new Date().toISOString(),
-    sources,
-    items,
-  }}));
-}})();
+_ROWS_JS = """
+() => {
+  const out = [];
+  document.querySelectorAll('table tbody tr, .ncc-citem').forEach((el, i) => {
+    const tds = el.querySelectorAll('td');
+    let title = '', heat = '', url = '';
+    // 优先行内第一个链接（各榜单 td 布局不一：有的标题在 td[1]，有的在 td[2]）
+    const a = el.querySelector('a');
+    if (a && a.innerText.trim().length > 2) {
+      title = a.innerText.trim();
+      url = a.href || '';
+    } else {
+      for (const td of tds) {
+        const t = td.innerText.trim();
+        if (t.length > 4 && !/^\\d+[.、]?$/.test(t)) { title = t; break; }
+      }
+      url = a ? (a.href || '') : '';
+    }
+    // 热度：最后一个纯数字/万亿单位的 td
+    for (let j = tds.length - 1; j >= 0; j--) {
+      const t = tds[j].innerText.trim();
+      if (/^[\\d.]+\\s*[万亿]?$/.test(t)) { heat = t; break; }
+    }
+    if (title && title.length > 2 && title.length < 100) {
+      out.push({ title, heat, url, rank: i + 1 });
+    }
+  });
+  return out;
+}
 """
 
 
@@ -158,10 +139,12 @@ def filter_for_account(
     weights = account_config.get("fit_weights", {})
     threshold = min_fit if min_fit is not None else account_config.get("min_fit", 0.45)
 
-    w_keyword = weights.get("keyword", 0.35)
-    w_category = weights.get("category", 0.20)
-    w_tag = weights.get("tag", 0.20)
-    w_recency = weights.get("recency", 0.10)
+    # tophub 原始数据没有 tags/category_hint，这两个维度默认权重为 0，
+    # 把权重让给关键词和时效；账号可用 fit_weights 覆盖。
+    w_keyword = weights.get("keyword", 0.60)
+    w_category = weights.get("category", 0.0)
+    w_tag = weights.get("tag", 0.0)
+    w_recency = weights.get("recency", 0.25)
     w_column = weights.get("column", 0.15)
 
     columns = account_config.get("columns", [])
@@ -177,9 +160,9 @@ def filter_for_account(
         if any(w in title for w in exclude):
             continue
 
-        # 关键词匹配（字面包含 + 模糊）
+        # 关键词匹配：命中 1 个给 0.7，2 个及以上满分（短标题很难命中 3 个）
         kw_matched = sum(1 for w in include if w in title)
-        kw_score = min(1.0, kw_matched / max(1, min(3, len(include)))) if include else 0.5
+        kw_score = min(1.0, 0.7 * kw_matched) if include else 0.5
 
         # 品类亲和
         cat_score = 1.0 if cat_hint and cat_hint in focus_cats else 0.0
@@ -229,10 +212,30 @@ def _jaccard(a: str, b: str) -> float:
 
 
 def save_raw(shared_dir: Path, date: str, raw: dict[str, Any]) -> Path:
-    """存全量原始数据到 shared/hotspots/YYYY-MM-DD/_raw.json。"""
+    """存全量原始数据到 shared/hotspots/YYYY-MM-DD/_raw.json。
+
+    部分榜单失败时与已有数据合并：保住上次成功的条目，不被空结果冲掉。
+    """
     day_dir = shared_dir / "hotspots" / date
     day_dir.mkdir(parents=True, exist_ok=True)
     path = day_dir / "_raw.json"
+    if path.exists():
+        try:
+            old = json.loads(path.read_text(encoding="utf-8"))
+            old_items = {it.get("id"): it for it in old.get("items", []) if it.get("id")}
+            new_ids = {it.get("id") for it in raw.get("items", [])}
+            # 本次没抓到的榜单，保留旧数据里对应条目
+            ok_boards = {s.get("board") for s in raw.get("sources", []) if s.get("state") == "ok"}
+            for oid, it in old_items.items():
+                if oid not in new_ids and it.get("board") not in ok_boards:
+                    raw.setdefault("items", []).append(it)
+            # sources 合并：本次失败的榜单若旧数据有成功记录，标注 retained
+            old_src = {s.get("board"): s for s in old.get("sources", [])}
+            for s in raw.get("sources", []):
+                if s.get("state") != "ok" and old_src.get(s.get("board"), {}).get("state") == "ok":
+                    s["retained_from_previous"] = True
+        except (json.JSONDecodeError, OSError):
+            pass
     path.write_text(json.dumps(raw, ensure_ascii=False, indent=2), encoding="utf-8")
     return path
 

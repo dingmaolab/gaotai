@@ -170,6 +170,16 @@ def _dispatch(args):
         else:
             boards = acc.data.get("sources")
             raw = fetch_raw(boards)
+            # 全部榜单失败 → 不覆盖已有 raw（保住上次成功的数据），并暴露错误
+            states = [s.get("state") for s in raw.get("sources", [])]
+            if states and all(s != "ok" for s in states):
+                errs = "; ".join(f"{s.get('board')}: {s.get('error', s.get('state'))}"
+                                 for s in raw.get("sources", [])[:3])
+                if all(s == "blocked" for s in states):
+                    fail("FETCH_BLOCKED", f"tophub 反爬拦截（{date}）：{errs}",
+                         "等 10-30 分钟再抓；当天已抓过可用 gaotai hot --refilter 重筛不重抓")
+                fail("FETCH_FAILED", f"热点抓取失败（{date}）：{errs}",
+                     "检查网络 / playwright 安装（pip install playwright && playwright install chromium）")
             save_raw(shared, date, raw)
 
         if args.fetch_only:
