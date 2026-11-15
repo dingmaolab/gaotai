@@ -92,7 +92,7 @@ gaotai/
 │   └── themes.py          # 主题加载
 ├── themes/*.yaml          # 6 套排版主题
 ├── covers/*.yaml          # 配图规格（平台×形式）
-├── tests/test_core.py     # 12 项测试
+├── tests/test_core.py     # 14 项测试
 └── docs/                  # 设计文档
 ```
 
@@ -111,7 +111,7 @@ gaotai/
 python -X utf8 tests/test_core.py
 ```
 
-12 项测试覆盖：vault init、note、check blocker、check soft、tone、style own/ref、format、export、dimensions/structures YAML 校验、evolve。
+14 项测试覆盖：vault init、note、check blocker、check soft、tone、style own/ref、format、export、dimensions/structures YAML 校验、evolve、热点筛选打分、热点提取双布局（离线）。
 
 新增功能必须加对应测试。
 

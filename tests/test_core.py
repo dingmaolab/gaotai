@@ -163,11 +163,73 @@ def test_evolve():
         assert props["proposals"][0]["status"] == "tentative"
     print("OK evolve (recent + story-bank + anti-drift)")
 
+
+def test_hot_filter_scoring():
+    """筛选打分：tophub 无 tags/category 时，关键词命中应能过阈值。"""
+    from core.hot import filter_for_account
+    raw = {"items": [
+        {"id": "a-1", "title": "马斯克回应SpaceX筷子夹飞船", "board": "微博热搜", "rank": 1},
+        {"id": "a-2", "title": "DeepSeek发布新模型API价格引热议", "board": "知乎热榜", "rank": 5},
+        {"id": "a-3", "title": "某明星八卦恋情曝光", "board": "微博热搜", "rank": 2},
+        {"id": "a-4", "title": "纯融资新闻：某公司获A轮", "board": "头条", "rank": 3},
+    ]}
+    cfg = {
+        "topics_include": ["AI", "大模型", "模型", "DeepSeek", "马斯克", "SpaceX"],
+        "topics_exclude": ["明星八卦", "纯融资新闻"],
+        "categories_focus": ["ai-tech"],
+        "columns": [{"name": "躬身试新", "desc": "亲手把新工具用一遍"}],
+    }
+    r = filter_for_account(raw, cfg)
+    titles = [x["title"] for x in r]
+    assert any("马斯克" in t for t in titles), f"单词命中应过阈值: {titles}"
+    assert any("DeepSeek" in t for t in titles), f"双词命中应高分: {titles}"
+    assert not any("八卦" in t for t in titles), "排除词应生效"
+    assert not any("融资" in t for t in titles), "排除词应生效"
+    assert r[0]["fit"] >= r[-1]["fit"], "应按 fit 降序"
+    print("OK hot filter scoring")
+
+
+def test_hot_rows_js():
+    """离线验证 _ROWS_JS 两种表格布局（需 playwright，缺失则跳过）。"""
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError:
+        print("SKIP hot rows js (playwright not installed)")
+        return
+    import tempfile
+    from core.hot import _ROWS_JS
+    html = """<html><body>
+<table><tbody>
+<tr><td>1.</td><td><a href="https://weibo.com/1">微博标题甲</a></td><td>1234万</td><td>热</td></tr>
+</tbody></table>
+<table><tbody>
+<tr><td>1.</td><td></td><td><a href="https://www.zhihu.com/question/1">知乎标题乙在第三列</a></td><td>x</td></tr>
+</tbody></table>
+</body></html>"""
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".html", delete=False, encoding="utf-8") as f:
+        f.write(html)
+        p = Path(f.name)
+    try:
+        with sync_playwright() as pw:
+            b = pw.chromium.launch(headless=True)
+            page = b.new_page()
+            page.goto(p.as_uri())
+            rows = page.evaluate(_ROWS_JS)
+            b.close()
+    finally:
+        p.unlink()
+    assert len(rows) == 2, f"expect 2 rows, got {len(rows)}"
+    assert rows[0]["title"] == "微博标题甲" and rows[0]["heat"] == "1234万"
+    assert rows[1]["title"] == "知乎标题乙在第三列", "知乎布局（标题在 td[2]）提取失败"
+    assert rows[1]["heat"] == "", "序号列不应误判为热度"
+    print("OK hot rows js (both layouts)")
+
 if __name__ == "__main__":
     tests = [
         test_vault_init, test_note, test_check_hard_blockers, test_check_soft_not_blocking,
         test_tone, test_style_learn_own, test_style_learn_ref, test_format, test_export,
         test_dimensions_yaml, test_structures_yaml, test_evolve,
+        test_hot_filter_scoring, test_hot_rows_js,
     ]
     failed = 0
     for t in tests:

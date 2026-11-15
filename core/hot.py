@@ -113,10 +113,10 @@ _ROWS_JS = """
       }
       url = a ? (a.href || '') : '';
     }
-    // 热度：最后一个纯数字/万亿单位的 td
+    // 热度：最后一个纯数字/万亿单位的 td（排除 "1." 这类序号）
     for (let j = tds.length - 1; j >= 0; j--) {
       const t = tds[j].innerText.trim();
-      if (/^[\\d.]+\\s*[万亿]?$/.test(t)) { heat = t; break; }
+      if (/^\\d+(\\.\\d+)?\\s*[万亿]?$/.test(t)) { heat = t; break; }
     }
     if (title && title.length > 2 && title.length < 100) {
       out.push({ title, heat, url, rank: i + 1 });
