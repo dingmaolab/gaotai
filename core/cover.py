@@ -5,9 +5,6 @@ deviceScaleFactor=2 出高清图。
 """
 from __future__ import annotations
 
-import json
-import subprocess
-import sys
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -128,33 +125,32 @@ def _fit_text(text: str, max_lines: int, chars_per_line: int) -> tuple[str, str 
 
 
 def _screenshot(html: str, out_path: Path, width: int, height: int) -> bool:
-    """用 Playwright 截图。需要 node + playwright。"""
+    """用 Python Playwright 截图（deviceScaleFactor=2 出高清图）。
+
+    纯 Python 实现，不依赖 node 模块解析路径。
+    需要 pip install playwright && playwright install chromium。
+    """
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError:
+        return False
     with tempfile.NamedTemporaryFile(mode="w", suffix=".html", delete=False, encoding="utf-8") as f:
         f.write(html)
-        html_path = f.name
-
-    js = f"""
-const {{ chromium }} = require('playwright');
-(async () => {{
-  const b = await chromium.launch({{ headless: true }});
-  const p = await b.newPage({{ viewport: {{ width: {width}, height: {height} }}, deviceScaleFactor: 2 }});
-  await p.goto('file:///{html_path.replace(chr(92), "/")}');
-  await p.waitForTimeout(500);
-  await p.screenshot({{ path: '{str(out_path).replace(chr(92), "/")}', fullPage: false }});
-  await b.close();
-}})();
-"""
-    js_path = Path(html_path).with_suffix(".js")
-    js_path.write_text(js, encoding="utf-8")
+        html_path = Path(f.name)
     try:
-        r = subprocess.run(["node", str(js_path)], capture_output=True, text=True, timeout=30)
-        return r.returncode == 0 and out_path.is_file()
-    except (FileNotFoundError, subprocess.TimeoutExpired):
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(headless=True)
+            page = browser.new_page(viewport={"width": width, "height": height}, device_scale_factor=2)
+            page.goto(html_path.as_uri())
+            page.wait_for_timeout(500)
+            page.screenshot(path=str(out_path), full_page=False)
+            browser.close()
+        return out_path.is_file()
+    except Exception:
         return False
     finally:
         try:
-            Path(html_path.unlink())
-            js_path.unlink()
+            html_path.unlink()
         except OSError:
             pass
 
