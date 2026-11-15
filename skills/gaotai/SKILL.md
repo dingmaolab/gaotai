@@ -40,7 +40,7 @@ description: 自媒体内容生产系统。记录热点与灵感、开始创作�
    - 几个栏目、多久一更？
    - 关注什么话题？
    - 绝对不写什么？
-3. **喂范文**：让用户提供 3-5 篇自己写的文章 → `python gaotai.py learn <文件1> <文件2> ...`
+3. **喂范文**：让用户提供 3-5 篇自己写的文章 → `python gaotai.py learn --own <文件1> <文件2> ...`（两篇时必须加 `--own`，否则 CLI 会要求消歧）
 4. **可选：参考对比**：用户给相似账号 URL → 抓取 → `python gaotai.py learn --reference <url或文本> --author <作者>`
    - 只提取结构和数据手法，**不学观点、经历、金句**
    - 分析结果写三栏：他们怎么做 / 你可以借鉴什么 / 你不要做什么
@@ -51,9 +51,9 @@ description: 自媒体内容生产系统。记录热点与灵感、开始创作�
 ### 持续学习（不只是初始化）
 
 用户随时可以说"学一下这篇"或丢 URL：
-- **自己的文章** → `learn <文件>` → 更新 DNA
+- **自己的文章** → `learn --own <文件...>` → 更新 DNA
 - **别人的文章** → `learn --reference <url或文本>` → 只存 references，不动 DNA
-- **改完稿** → `learn 初稿.md 终稿.md` → diff → 抽 lesson
+- **改完稿** → `learn --diff 初稿.md 终稿.md` → diff → 抽 lesson
 - 不确定是谁的 → **问一句，不猜**
 
 ---
@@ -215,7 +215,7 @@ python gaotai.py tone draft.md --compare draft-v2.md
 用户改完稿后，主动说："要不要学一下这次的修改？"
 
 ```bash
-python gaotai.py learn draft.md final.md
+python gaotai.py learn --diff draft.md final.md
 ```
 
 脚本做 diff，你来分析差异意味着什么规则，然后写入 lessons。
@@ -286,9 +286,9 @@ python gaotai.py learn draft.md final.md
 | `note "一句话"` | 记灵感 |
 | `hot [--refilter]` | 抓/筛热点 |
 | `new "标题"` | 建项目 |
-| `learn A B` | diff 学风格 |
+| `learn --diff A B` | diff 学风格（初稿+终稿） |
 | `learn --reference URL` | 学别人技法 |
-| `learn file1 file2...` | 喂自己的范文 |
+| `learn --own file1 file2...` | 喂自己的范文 |
 | `profile` | 看画像 |
 | `card-build` | 重整风格卡 |
 | `check md` | 机械审稿 |

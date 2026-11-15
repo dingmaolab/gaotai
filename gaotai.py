@@ -66,9 +66,11 @@ def main():
 
     # learn
     s = sub.add_parser("learn", help="学习风格")
-    s.add_argument("files", nargs="+", help="初稿+终稿（diff），或单文件/URL（参考）")
+    s.add_argument("files", nargs="+", help="自己的文章（可多篇）；--diff 时传初稿+终稿；--reference 时传单文件或 URL")
     s.add_argument("--author", default="", help="参考文章的作者")
     s.add_argument("--reference", action="store_true", help="强制作为第三方参考")
+    s.add_argument("--own", action="store_true", help="强制作为自己的范文（即使只有两篇）")
+    s.add_argument("--diff", action="store_true", help="改稿对比：恰好两个文件，初稿+终稿")
 
     # profile
     sub.add_parser("profile", help="查看画像和置信度")
@@ -193,15 +195,28 @@ def _dispatch(args):
     elif cmd == "learn":
         from core.style import learn_from_own, learn_from_reference, learn_from_diff
         files = [Path(f) for f in args.files]
-        if len(files) == 2 and all(f.is_file() for f in files):
+        if args.diff:
+            if len(files) != 2 or not all(f.is_file() for f in files):
+                fail("BAD_ARGS", "--diff 需要恰好两个文件：初稿 终稿")
+                return
             r = learn_from_diff(v, acc, files[0].read_text("utf-8"), files[1].read_text("utf-8"))
         elif args.reference or (len(files) == 1 and not files[0].is_file()):
             text = args.files[0] if not files[0].is_file() else files[0].read_text("utf-8")
             r = learn_from_reference(v, acc, text, author=args.author)
-        elif len(files) >= 1 and all(f.is_file() for f in files):
+        elif args.own or len(files) >= 3:
+            if not all(f.is_file() for f in files):
+                fail("BAD_ARGS", "范文学习需要全部是存在的文件")
+                return
+            r = learn_from_own(v, acc, files)
+        elif len(files) == 2 and all(f.is_file() for f in files):
+            fail("AMBIGUOUS_LEARN",
+                 "两个文件有歧义：是「初稿+终稿」还是「两篇范文」？",
+                 "改稿对比加 --diff；喂自己的范文加 --own")
+            return
+        elif len(files) == 1 and files[0].is_file():
             r = learn_from_own(v, acc, files)
         else:
-            fail("BAD_ARGS", "传两个文件做 diff，或传文件/URL 做参考，或传多篇自己的文章")
+            fail("BAD_ARGS", "传文件学风格：多篇范文直接传；两篇用 --own 或 --diff 消歧；参考用 --reference")
             return
         out(r)
 

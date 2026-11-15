@@ -274,6 +274,16 @@ def build_card(vault: Vault, account: Account, max_chars: int = 2400) -> dict[st
             if len(section) < budget:
                 parts.append(section)
 
+    # 4. 手工蒸馏底稿（v1 风格卡等）：机器 layers 之外的定性判断，低优先级保留
+    backup = style_dir / "style-card-v1-backup.md"
+    if backup.is_file() and budget > 200:
+        text = backup.read_text(encoding="utf-8").strip()
+        section = "\n## 手工蒸馏底稿（低置信度，供参考）\n\n" + text
+        if len(section) > budget:
+            section = section[:budget - 20] + "\n…（截断，全文见 style/style-card-v1-backup.md）"
+        parts.append(section)
+        budget -= len(section)
+
     card = "# 风格卡\n\n" + "".join(parts)
     if len(card) > max_chars:
         card = card[:max_chars - 20] + "\n\n…（超长截断）"
