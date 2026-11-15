@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -133,7 +134,13 @@ def _dispatch(args):
     cmd = args.cmd
 
     if cmd == "init":
-        root = resolve_vault(args.vault, Path.cwd())
+        # 一个账号一个目录：默认在当前目录建号；显式 --vault / GAOTAI_VAULT 才走库布局
+        if args.vault:
+            root = Path(args.vault).resolve()
+        elif os.environ.get("GAOTAI_VAULT"):
+            root = Path(os.environ["GAOTAI_VAULT"]).resolve()
+        else:
+            root = Path.cwd()
         aid = args.id or args.name.lower().replace(" ", "-")[:30]
         r = init_vault(root, aid, args.name, positioning=args.positioning, audience=args.audience)
         out({"ok": True, **r, "next": "编辑 .gaotai/account.yaml 填栏目和关注词；然后喂 3-5 篇你自己的文章"})

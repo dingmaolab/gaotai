@@ -95,7 +95,7 @@ class Vault:
     # ---------- 基础 ----------
 
     def exists(self) -> bool:
-        return (self.root / "vault.yaml").exists()
+        return (self.root / "vault.yaml").exists() or (self.root / ".gaotai" / "account.yaml").is_file()
 
     @property
     def config(self) -> dict[str, Any]:
@@ -110,6 +110,17 @@ class Vault:
     # ---------- 账号 ----------
 
     def accounts(self) -> list[Account]:
+        # 单账号模式：root 本身就是账号目录（一个账号一个目录）
+        f = self.root / ".gaotai" / "account.yaml"
+        if not f.is_file():
+            f = self.root / "account.yaml"
+        if f.is_file():
+            try:
+                data = yaml.safe_load(f.read_text(encoding="utf-8")) or {}
+            except yaml.YAMLError:
+                data = {}
+            return [Account(id=str(data.get("id") or self.root.name),
+                            name=str(data.get("name") or self.root.name), data=data, dir=self.root)]
         adir = self.root / "accounts"
         if not adir.is_dir():
             return []
@@ -154,6 +165,18 @@ class Vault:
         if not re.fullmatch(r"[a-z0-9][a-z0-9-]{1,40}", account_id):
             raise VaultError("BAD_ACCOUNT_ID", "账号 id 只能用小写字母、数字、连字符，2-41 位", "例如 lingqilulu")
         adir = self.root / "accounts" / account_id
+        return self.create_account_at(adir, account_id, name, positioning, audience, tone_hint)
+
+    def create_account_at(
+        self,
+        adir: Path,
+        account_id: str,
+        name: str,
+        positioning: str = "",
+        audience: str = "",
+        tone_hint: str = "",
+    ) -> dict[str, Any]:
+        """在指定目录建账号骨架。单账号模式下 adir 就是内容库根。"""
         gaotai_dir = adir / ".gaotai"
         f = gaotai_dir / "account.yaml"
         if f.exists():
@@ -221,7 +244,11 @@ class Vault:
         )
         write_atomic(adir / "README.md", readme)
 
-        return {"id": account_id, "dir": str(adir.relative_to(self.root)).replace(chr(92), "/")}
+        try:
+            rel = str(adir.relative_to(self.root)).replace(chr(92), "/")
+        except ValueError:
+            rel = "."
+        return {"id": account_id, "dir": rel}
 
     # ---------- 灵感 / 热点 ----------
 
@@ -334,13 +361,28 @@ class VaultError(Exception):
         self.next_action = next_action
 
 
+def find_account_root(start: Path | None = None) -> Path | None:
+    """从 start 向上找账号目录（含 .gaotai/account.yaml，兼容旧版 account.yaml）。
+
+    一个账号一个目录：cd 进账号目录（或其子目录）就是给这个号干活。
+    """
+    p = (start or Path.cwd()).resolve()
+    for d in [p, *p.parents]:
+        if (d / ".gaotai" / "account.yaml").is_file() or (d / "account.yaml").is_file():
+            return d
+    return None
+
+
 def resolve_vault(cli_vault: str | None = None, cwd: Path | None = None) -> Path:
-    """内容库位置：--vault > GAOTAI_VAULT > ./GaotaiVault > ~/GaotaiVault"""
+    """内容库位置：--vault > GAOTAI_VAULT > 当前账号目录 > ./GaotaiVault > ~/GaotaiVault"""
     if cli_vault:
         return Path(cli_vault).resolve()
     env = os.environ.get("GAOTAI_VAULT")
     if env:
         return Path(env).resolve()
+    acc_root = find_account_root(cwd)
+    if acc_root:
+        return acc_root
     here = (cwd or Path.cwd()) / "GaotaiVault"
     if here.exists():
         return here.resolve()
@@ -348,32 +390,48 @@ def resolve_vault(cli_vault: str | None = None, cwd: Path | None = None) -> Path
 
 
 def init_vault(root: Path, account_id: str, name: str, **kw) -> dict[str, Any]:
-    """建库骨架；重复执行不会覆盖已有文件。"""
+    """建账号；重复执行不会覆盖已有文件。
+
+    两种布局：
+    - root 已是内容库（有 vault.yaml/accounts/）→ 传统多账号布局，账号建在 accounts/<id>/
+    - 否则 → 一个账号一个目录：root 本身就是账号目录
+    """
     root.mkdir(parents=True, exist_ok=True)
-    for d in ("accounts", "hotspots", "assets"):
-        (root / d).mkdir(exist_ok=True)
-    vy = root / "vault.yaml"
-    vault_created = False
-    if not vy.exists():
-        vault_created = True
-        write_atomic(vy, yaml.safe_dump({
-            "schema_version": 1,
-            "name": "稿台内容库",
-            "timezone": "Asia/Shanghai",
-            "categories": [
-                {"id": "ai-tech", "name": "AI 与科技"},
-                {"id": "emotion-society", "name": "情感与社会"},
-                {"id": "workplace", "name": "职场与成长"},
-                {"id": "lifestyle", "name": "生活方式"},
-                {"id": "money", "name": "财经与商业"},
-                {"id": "opinion", "name": "观点与评论"},
-                {"id": "other", "name": "其他"},
-            ],
-            "hotspot": {"daily_times": ["08:30", "12:30", "20:30"], "window_days": 7, "min_fit": 0.45},
-        }, allow_unicode=True, sort_keys=False, width=1000))
-    v = Vault(root)
-    existing = {a.id for a in v.accounts()}
-    acc = None
-    if account_id not in existing:
-        acc = v.create_account(account_id, name, kw.get("positioning", ""), kw.get("audience", ""), kw.get("tone_hint", ""))
-    return {"vault": str(root), "vault_created": vault_created, "account_created": acc is not None, "account": acc}
+    legacy = (root / "vault.yaml").exists() or (root / "accounts").is_dir()
+    if legacy:
+        for d in ("accounts", "hotspots", "assets"):
+            (root / d).mkdir(exist_ok=True)
+        vy = root / "vault.yaml"
+        vault_created = False
+        if not vy.exists():
+            vault_created = True
+            write_atomic(vy, yaml.safe_dump({
+                "schema_version": 1,
+                "name": "稿台内容库",
+                "timezone": "Asia/Shanghai",
+                "categories": [
+                    {"id": "ai-tech", "name": "AI 与科技"},
+                    {"id": "emotion-society", "name": "情感与社会"},
+                    {"id": "workplace", "name": "职场与成长"},
+                    {"id": "lifestyle", "name": "生活方式"},
+                    {"id": "money", "name": "财经与商业"},
+                    {"id": "opinion", "name": "观点与评论"},
+                    {"id": "other", "name": "其他"},
+                ],
+                "hotspot": {"daily_times": ["08:30", "12:30", "20:30"], "window_days": 7, "min_fit": 0.45},
+            }, allow_unicode=True, sort_keys=False, width=1000))
+        v = Vault(root)
+        existing = {a.id for a in v.accounts()}
+        acc = None
+        if account_id not in existing:
+            acc = v.create_account(account_id, name, kw.get("positioning", ""), kw.get("audience", ""), kw.get("tone_hint", ""))
+        return {"vault": str(root), "vault_created": vault_created, "account_created": acc is not None, "account": acc}
+
+    # 单账号模式：当前目录就是账号目录
+    v = Vault(root.parent)
+    gaotai_dir = root / ".gaotai"
+    if (gaotai_dir / "account.yaml").exists():
+        return {"vault": str(root), "vault_created": False, "account_created": False,
+                "account": {"id": account_id, "dir": "."}}
+    acc = v.create_account_at(root, account_id, name, kw.get("positioning", ""), kw.get("audience", ""), kw.get("tone_hint", ""))
+    return {"vault": str(root), "vault_created": True, "account_created": True, "account": acc}

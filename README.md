@@ -15,13 +15,16 @@
 python install.py
 ```
 
-自动检测 Claude Code / Cursor / WorkBuddy 等 Agent 环境 并安装技能。
+自动检测 Claude Code / Cursor / WorkBuddy 等 Agent 环境并安装技能。
+skill 自包含：SKILL.md + 完整 CLI 运行时一起装进技能目录，装完不依赖源码仓库位置。
 
 ## 使用
 
+一个账号一个目录。建个目录 cd 进去，在对话里说「初始化」即可；手动等价命令：
+
 ```bash
 cd /path/to/my-account
-python gaotai.py init --name 另起炉录
+python <技能目录>/gaotai.py init --name 另起炉录
 ```
 
 然后在对话里说话就行：

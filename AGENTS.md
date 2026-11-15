@@ -45,6 +45,9 @@
 ### 5. 一个账号一个目录
 
 `cd` 进账号目录就是给这个号干活。不需要 `--account` 参数。
+`init` 默认把当前目录建成账号目录（`.gaotai/account.yaml` 在根）；
+显式 `--vault` / `GAOTAI_VAULT` 才走传统多账号库布局（`accounts/<id>/`）。
+`resolve_vault` 会从 cwd 向上找账号目录，子目录里也能干活。
 源码和内容完全分离。升级代码不碰内容。
 
 ## 渐进式上下文加载
@@ -88,8 +91,8 @@ gaotai/
 │   ├── md.py              # Markdown 解析
 │   └── themes.py          # 主题加载
 ├── themes/*.yaml          # 6 套排版主题
-├── covers/*.yaml          # 配图规格（待补）
-├── tests/test_core.py     # 11 项测试
+├── covers/*.yaml          # 配图规格（平台×形式）
+├── tests/test_core.py     # 12 项测试
 └── docs/                  # 设计文档
 ```
 
@@ -108,7 +111,7 @@ gaotai/
 python -X utf8 tests/test_core.py
 ```
 
-11 项测试覆盖：vault init、note、check blocker、check soft、tone、style own/ref、format、export、dimensions/structures YAML 校验。
+12 项测试覆盖：vault init、note、check blocker、check soft、tone、style own/ref、format、export、dimensions/structures YAML 校验、evolve。
 
 新增功能必须加对应测试。
 

@@ -4,6 +4,15 @@
 
 ## [Unreleased]
 
+### 新增
+- **skill 自包含安装**：install.py 把 SKILL.md + 完整运行时（gaotai.py/core/themes/covers）一起装进技能目录，装完不依赖源码仓库位置
+- **一个账号一个目录落地**：init 默认把当前目录建成账号目录；resolve_vault 从 cwd 向上找账号，子目录里也能干活；显式 --vault / GAOTAI_VAULT 才走多账号库布局
+- SKILL.md 增加「运行环境」节：CLI 绝对路径约定、工作目录、Python 要求
+
+### 修复
+- init 不再误落到 ~/GaotaiVault（原先在任意目录 init 都会污染默认库）
+- Vault.exists() 兼容单账号布局（无 vault.yaml 也识别）
+
 ### 待办
 - covers 模板 HTML 文件（当前 cover.py 内联生成，后续可抽为独立模板）
 - hot.py Playwright 抓取的实际端到端测试
