@@ -26,6 +26,10 @@ AD_EXEMPT = re.compile(
     r"最佳做法|最佳实践|最佳时机|最佳方案|最佳路径|最佳答案|最有效的办法"
 )
 
+# 「第一」的序数/时间用法不是绝对化宣称（第一次/第一步/第一天…）
+ORDINAL_AFTER = re.compile(r"^(次|步|天|年|月|周|轮|批|波|代|季|期|章|节|段|部分|阶段|时间|个|位|名|条|篇|层|版|稿)")
+ORDINAL_BEFORE = re.compile(r"(第[一二三四五六七八九十百千]+)$")
+
 FABRICATION_PATTERNS = [
     re.compile(r"我(亲眼|亲身|亲自)(看到|经历|体验|见证)了.{0,20}(奇迹|震撼|颠覆)"),
     re.compile(r"(那一刻|瞬间|刹那间)我(明白|顿悟|领悟|意识到)了"),
@@ -85,6 +89,11 @@ def check(
     for w in AD_LAW:
         for m in re.finditer(re.escape(w), prose):
             ctx = prose[max(0, m.start() - 20):m.end() + 20]
+            after = prose[m.end():m.end() + 6]
+            before = prose[max(0, m.start() - 6):m.start()]
+            # 序数用法豁免：第一次/第一步…；「第X个」里的「第一」也豁免
+            if w == "第一" and (ORDINAL_AFTER.match(after) or ORDINAL_BEFORE.search(before)):
+                continue
             if not AD_EXEMPT.search(ctx):
                 blockers.append({
                     "id": "ad-law", "level": "blocker",

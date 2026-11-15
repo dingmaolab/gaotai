@@ -215,10 +215,12 @@ python gaotai.py tone draft.md --compare draft-v2.md
 用户改完稿后，主动说："要不要学一下这次的修改？"
 
 ```bash
-python gaotai.py learn --diff draft.md final.md
+python gaotai.py learn --diff draft-v1.md final.md
 ```
 
 脚本做 diff，你来分析差异意味着什么规则，然后写入 lessons。
+
+**版本纪律（重要）**：每轮修改另存 `draft-v2.md`、`draft-v3.md`，不要原地覆盖上一版——覆盖了 diff 就没了，学习也就断了。定稿时才复制为 `final.md`。
 
 ### 规则分级
 

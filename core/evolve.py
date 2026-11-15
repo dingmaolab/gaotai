@@ -27,7 +27,10 @@ def record_article(
     ending_type: str = "", golden_phrases: list[str] | None = None,
     platform: str = "", dimensions: dict[str, str] | None = None,
 ) -> dict[str, Any]:
-    """每次 send 时调用，记录本篇的结构特征供反重复检查。"""
+    """每次 send 时调用，记录本篇的结构特征供反重复检查。
+
+    幂等：同日同标题已存在则更新该条，不重复插入。
+    """
     path = vault.account_path(account, "style", "recent.yaml")
     data: dict[str, Any] = {"articles": []}
     if path.is_file():
@@ -43,6 +46,13 @@ def record_article(
         "platform": platform,
         "dimensions": dimensions or {},
     }
+    # 同日同标题 → 原地更新（保留已有非空字段）
+    for i, a in enumerate(data["articles"]):
+        if a.get("date") == entry["date"] and a.get("title") == title:
+            merged = {**a, **{k: v for k, v in entry.items() if v}}
+            data["articles"][i] = merged
+            write_atomic(path, yaml.safe_dump(data, allow_unicode=True, sort_keys=False, width=1000))
+            return {"ok": True, "recorded": title, "updated": True, "total_tracked": len(data["articles"])}
     data["articles"].insert(0, entry)
     # 只保留最近 20 篇
     data["articles"] = data["articles"][:20]

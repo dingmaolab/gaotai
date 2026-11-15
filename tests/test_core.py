@@ -50,6 +50,19 @@ def test_check_hard_blockers():
     print("OK check hard blockers")
 
 
+def test_check_adlaw_ordinal():
+    """「第一」的序数用法不是广告法违规；绝对化宣称仍要拦。"""
+    ok_md = "# 记录\n\n这是装完之后的第一次真实使用。第一步就错了。第一天修了八个 bug。\n"
+    r = check(ok_md, {"source": "self", "format": "longform"})
+    ad = [b for b in r["blockers"] if b["id"] == "ad-law"]
+    assert not ad, f"序数用法不应拦截: {ad}"
+    bad_md = "# 宣传\n\n我们是行业第一的选择，销量第一。\n"
+    r2 = check(bad_md, {"source": "opinion", "format": "longform"})
+    ad2 = [b for b in r2["blockers"] if b["id"] == "ad-law"]
+    assert ad2, "绝对化宣称应拦截"
+    print("OK check ad-law ordinal exemption")
+
+
 def test_check_soft_not_blocking():
     md = "# 感悟\n\n今天天气很好。我出去走了走。感觉不错。\n"
     r = check(md, {"source": "self", "format": "longform", "audience": "self"})
@@ -226,7 +239,8 @@ def test_hot_rows_js():
 
 if __name__ == "__main__":
     tests = [
-        test_vault_init, test_note, test_check_hard_blockers, test_check_soft_not_blocking,
+        test_vault_init, test_note, test_check_hard_blockers, test_check_adlaw_ordinal,
+        test_check_soft_not_blocking,
         test_tone, test_style_learn_own, test_style_learn_ref, test_format, test_export,
         test_dimensions_yaml, test_structures_yaml, test_evolve,
         test_hot_filter_scoring, test_hot_rows_js,
