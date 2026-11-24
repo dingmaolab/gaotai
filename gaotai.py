@@ -84,6 +84,7 @@ def main():
     s.add_argument("--format", default="longform", dest="fmt")
     s.add_argument("--source", default="")
     s.add_argument("--audience", default="peer")
+    s.add_argument("--tool-course", action="store_true", help="工具课模式：本体字数红线与图表底线")
 
     # tone
     s = sub.add_parser("tone", help="AI 味检测")
@@ -242,6 +243,8 @@ def _dispatch(args):
         from core.check import check
         md = Path(args.md).read_text("utf-8")
         dims = {"format": args.fmt, "source": args.source, "audience": args.audience}
+        if getattr(args, "tool_course", False):
+            dims["tool_course"] = "true"
         overrides = acc.data.get("overrides", {})
         out({"ok": True, **check(md, dims, overrides)})
 

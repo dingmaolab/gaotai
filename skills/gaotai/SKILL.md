@@ -190,6 +190,8 @@ python gaotai.py check draft.md --source event --audience peer --format longform
 - **warn**：套话密度、字数超限、感叹号 → 建议改
 - **info**：数字密度、人称占比、段落长度 → 仅供参考
 
+**工具课模式**：加 `--tool-course`，多两条机器闸——① 工具本体（`## ①` 到 `## 跟做步骤` 之间，剔除表格/图片/代码块后的纯汉字）超 1500 字 → warn；② 全文 0 图 0 表 → warn。定位不到本体时降级为 info 提示，不硬拦。方法论课不加此旗标，不受限。
+
 **blocker 是闸门，不能带着导出。软建议绝不拦截。**
 
 ### AI 味检测

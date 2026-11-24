@@ -127,7 +127,15 @@ def test_export():
         assert r["ok"]
         assert (Path(d) / "wechat" / "paste.html").is_file()
         assert (Path(d) / "export.zip").is_file()
-    print("OK export")
+        # 回归：zip 必须可被标准工具解析（曾因中央目录漏写文件名导致坏包）
+        import zipfile
+        with zipfile.ZipFile(Path(d) / "export.zip") as z:
+            assert z.testzip() is None
+            names = z.namelist()
+            assert "wechat/paste.html" in names, names
+            for n in names:
+                assert z.read(n) == (Path(d) / n).read_bytes()
+    print("OK export (zip verified)")
 
 
 def test_dimensions_yaml():
@@ -237,10 +245,33 @@ def test_hot_rows_js():
     assert rows[1]["heat"] == "", "序号列不应误判为热度"
     print("OK hot rows js (both layouts)")
 
+def test_check_tool_course():
+    """工具课模式：超红线与 0图0表出 warn；不带旗标不受扰；方法论课降级 info。"""
+    ok_md = ("# 课\n\n## ① 装\n\n跑一行命令就好。\n\n"
+             "| 步骤 | 命令 |\n|---|---|\n| 1 | x |\n\n"
+             "![示意](a.png)\n\n## 跟做步骤\n\n1. 做\n")
+    r = check(ok_md, {"tool_course": "true"})
+    assert not [w for w in r["warnings"] if w["id"].startswith("tool")], r["warnings"]
+
+    fat = "# 课\n\n## ① 装\n\n" + "这是一句用来撑字数的讲解。" * 400 + "\n\n## 跟做步骤\n\n1. 做\n"
+    r2 = check(fat, {"tool_course": "true"})
+    assert "tool-body-long" in [w["id"] for w in r2["warnings"]]
+    assert "tool-no-visual" in [w["id"] for w in r2["warnings"]]
+
+    r3 = check(fat, {})
+    assert not [w for w in r3["warnings"] if w["id"].startswith("tool")], "无旗标不扰"
+
+    meth = "# 课\n\n## 一、道理\n\n" + "这是方法论的一长段。" * 400 + "\n\n## 跟做步骤\n\n1. 做\n"
+    r4 = check(meth, {"tool_course": "true"})
+    assert not [w for w in r4["warnings"] if w["id"] == "tool-body-long"]
+    assert any(i["id"] == "tool-no-beats" for i in r4["infos"]), "定位不到→info 不硬拦"
+    print("OK check tool-course mode")
+
+
 if __name__ == "__main__":
     tests = [
         test_vault_init, test_note, test_check_hard_blockers, test_check_adlaw_ordinal,
-        test_check_soft_not_blocking,
+        test_check_soft_not_blocking, test_check_tool_course,
         test_tone, test_style_learn_own, test_style_learn_ref, test_format, test_export,
         test_dimensions_yaml, test_structures_yaml, test_evolve,
         test_hot_filter_scoring, test_hot_rows_js,

@@ -56,6 +56,30 @@ def _strip_prose(md: str) -> str:
     return s
 
 
+TOOL_BODY_LIMIT = 1500  # 工具课整改方案 R1；口径见 _tool_body
+
+
+def _tool_body(md: str) -> str | None:
+    """工具本体段：## ① 起手到 ## 跟做步骤 收口。
+
+    计数口径（定死，不留人裁）：剔除表格行、图片行、代码围栏、标题行之后，
+    按纯汉字数（[一-鿿]）计。找不到起点或收口返回 None，由调用方降级为 info。
+    """
+    start = re.search(r"^## ①", md, flags=re.M)
+    end = re.search(r"^## 跟做步骤", md, flags=re.M)
+    if not start or not end or end.start() <= start.start():
+        return None
+    seg = md[start.start():end.start()]
+    seg = re.sub(r"```[\s\S]*?```", "", seg)
+    kept = []
+    for ln in seg.split("\n"):
+        s = ln.strip()
+        if s.startswith("|") or s.startswith("![") or re.match(r"^#{1,6} ", s):
+            continue
+        kept.append(ln)
+    return "\n".join(kept)
+
+
 def check(
     md: str,
     dimensions: dict[str, str] | None = None,
@@ -210,6 +234,32 @@ def check(
             infos.append({"id": "pronoun-ratio", "level": "info",
                           "msg": f"「我」占比 {me_ratio}，当前读者类型建议 [{lo}, {hi}]",
                           "fix": "调整人称；这只是建议，不是错误"})
+
+    # ═══ 工具课模式（--tool-course；口径定死，见工具课整改方案）═══
+    if dims.get("tool_course") in ("true", "1", True, "yes"):
+        seg = _tool_body(md)
+        if seg is None:
+            infos.append({"id": "tool-no-beats", "level": "info",
+                          "msg": "定位不到工具本体（没有 ## ① 起手的节拍，或没有 ## 跟做步骤 收口）",
+                          "fix": "按五节拍写：① 到 ⑤，后接 ## 跟做步骤"})
+        else:
+            zh = len(re.findall(r"[一-鿿]", seg))
+            if zh > TOOL_BODY_LIMIT:
+                warnings.append({
+                    "id": "tool-body-long", "level": "warn",
+                    "msg": f"工具本体纯中文 {zh} 字，超红线 {TOOL_BODY_LIMIT}",
+                    "fix": "删或转表格（口径：①..跟做步骤之间，剔除表格/图片/代码块/标题后数汉字）",
+                })
+            else:
+                infos.append({"id": "tool-body-len", "level": "info",
+                              "msg": f"工具本体纯中文 {zh} 字，红线 {TOOL_BODY_LIMIT} 内",
+                              "fix": "口径：剔除表格/图片/代码块/标题后的汉字数"})
+        n_img = len(re.findall(r"^!\[", md, flags=re.M))
+        n_tab = len(re.findall(r"^\|", md, flags=re.M))
+        if n_img == 0 and n_tab == 0:
+            warnings.append({"id": "tool-no-visual", "level": "warn",
+                             "msg": "工具课正文 0 图 0 表",
+                             "fix": "对比 ≥3 项上表；每门工具课目标 ≥2 图（示意+实拍）"})
 
     # ═══ 个人偏好（DNA） ═══
     for pref in prefs:

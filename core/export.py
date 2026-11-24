@@ -172,15 +172,15 @@ def _build_zip(base: Path, rel_files: list[str], zip_path: Path) -> None:
         name = rel.replace("\\", "/").encode("utf-8")
         crc = zlib.crc32(data) & 0xFFFFFFFF
         offset = buf.tell()
-        # local file header
+        # local file header（flags=0x800：文件名按 UTF-8 存，中文否则被解成 CP437 乱码）
         buf.write(struct.pack("<4sHHHHHIIIHH",
-                              b"PK\x03\x04", 20, 0, 0, 0, 0, crc, len(data), len(data), len(name), 0))
+                              b"PK\x03\x04", 20, 0x800, 0, 0, 0, crc, len(data), len(data), len(name), 0))
         buf.write(name)
         buf.write(data)
-        # central directory entry
+        # central directory entry（结构体后必须紧跟文件名，与 local header 对齐）
         central.append(struct.pack("<4sHHHHHHIIIHHHHHII",
-                                   b"PK\x01\x02", 20, 20, 0, 0, 0, 0, crc, len(data), len(data),
-                                   len(name), 0, 0, 0, 0, 0, offset))
+                                   b"PK\x01\x02", 20, 20, 0x800, 0, 0, 0, crc, len(data), len(data),
+                                   len(name), 0, 0, 0, 0, 0, offset) + name)
     cd_offset = buf.tell()
     for c in central:
         buf.write(c)
